@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SwipeCard } from '@/components/SwipeCard';
 import { ActionButtons } from '@/components/ActionButtons';
+import { FeedbackForm } from '@/components/FeedbackForm';
 import { Button } from '@/components/ui/button';
 import { User, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +37,8 @@ const Index = () => {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [flaggedCard, setFlaggedCard] = useState<{title: string, category: string} | null>(null);
   const [moduleProgress, setModuleProgress] = useState<Record<string, number>>({
     "Basic Greetings": 0,
     "Time & Calendar": 0,
@@ -49,6 +52,13 @@ const Index = () => {
 
   const handleSwipe = (direction: 'left' | 'right' | 'up') => {
     if (isAnimating) return;
+    
+    // If flagging (left swipe), show feedback form
+    if (direction === 'left') {
+      setFlaggedCard({ title: currentCard.title, category: currentCard.category });
+      setShowFeedbackForm(true);
+      return;
+    }
     
     setIsAnimating(true);
     
@@ -67,7 +77,6 @@ const Index = () => {
     // Show feedback toast
     const messages = {
       right: { title: "✅ Approved!", description: "Good catch! This term looks correct." },
-      left: { title: "🚩 Flagged!", description: "Thanks for flagging this issue." },
       up: { title: "⏭️ Skipped", description: "No worries, skipping to the next one." }
     };
     
@@ -78,10 +87,43 @@ const Index = () => {
     
     // Move to next card after animation
     setTimeout(() => {
-      const currentModuleTerms = cldrModules[moduleNames[currentModuleIndex]];
-      setCurrentCardIndex((prev) => (prev + 1) % currentModuleTerms.length);
+      const moduleTerms = cldrModules[moduleNames[currentModuleIndex]];
+      setCurrentCardIndex((prev) => (prev + 1) % moduleTerms.length);
       setIsAnimating(false);
     }, 300);
+  };
+
+  const handleFeedbackSubmit = (feedback: string) => {
+    // Update stats
+    const newStats = { ...stats };
+    newStats.totalReviews += 1;
+    
+    // Update current module progress
+    const currentModuleName = moduleNames[currentModuleIndex];
+    const currentModuleTerms = cldrModules[currentModuleName];
+    const newProgress = { ...moduleProgress };
+    const currentProgress = newProgress[currentModuleName];
+    const incrementPerTerm = 100 / currentModuleTerms.length;
+    newProgress[currentModuleName] = Math.min(100, Math.round(currentProgress + incrementPerTerm));
+    
+    toast({ 
+      title: "🚩 Feedback Submitted!", 
+      description: "Thanks for the detailed feedback on this term." 
+    });
+    
+    setStats(newStats);
+    setModuleProgress(newProgress);
+    setShowFeedbackForm(false);
+    setFlaggedCard(null);
+    
+    // Move to next card
+    const feedbackModuleTerms = cldrModules[moduleNames[currentModuleIndex]];
+    setCurrentCardIndex((prev) => (prev + 1) % feedbackModuleTerms.length);
+  };
+
+  const handleFeedbackBack = () => {
+    setShowFeedbackForm(false);
+    setFlaggedCard(null);
   };
 
   const currentModuleTerms = cldrModules[moduleNames[currentModuleIndex]];
@@ -149,31 +191,43 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Card Stack Area */}
+        {/* Card Stack Area or Feedback Form */}
         <div className="relative w-80 h-96 mb-8">
-          {/* Next card (background) */}
-          {nextCard && (
-            <SwipeCard
-              key={`next-${currentModuleIndex}-${(currentCardIndex + 1) % currentModuleTerms.length}`}
-              title={nextCard.title}
-              category={nextCard.category}
-              onSwipe={() => {}}
-              isActive={false}
+          {showFeedbackForm && flaggedCard ? (
+            <FeedbackForm
+              card={flaggedCard}
+              onSubmit={handleFeedbackSubmit}
+              onBack={handleFeedbackBack}
             />
+          ) : (
+            <>
+              {/* Next card (background) */}
+              {nextCard && (
+                <SwipeCard
+                  key={`next-${currentModuleIndex}-${(currentCardIndex + 1) % currentModuleTerms.length}`}
+                  title={nextCard.title}
+                  category={nextCard.category}
+                  onSwipe={() => {}}
+                  isActive={false}
+                />
+              )}
+              
+              {/* Current card (foreground) */}
+              <SwipeCard
+                key={`current-${currentModuleIndex}-${currentCardIndex}`}
+                title={currentCard.title}
+                category={currentCard.category}
+                onSwipe={handleSwipe}
+                isActive={!isAnimating}
+              />
+            </>
           )}
-          
-          {/* Current card (foreground) */}
-          <SwipeCard
-            key={`current-${currentModuleIndex}-${currentCardIndex}`}
-            title={currentCard.title}
-            category={currentCard.category}
-            onSwipe={handleSwipe}
-            isActive={!isAnimating}
-          />
         </div>
 
-        {/* Action Buttons */}
-        <ActionButtons onAction={handleSwipe} disabled={isAnimating} />
+        {/* Action Buttons - only show when not in feedback mode */}
+        {!showFeedbackForm && (
+          <ActionButtons onAction={handleSwipe} disabled={isAnimating} />
+        )}
 
         {/* Instructions */}
         <div className="text-center mt-8 p-4 bg-card/30 rounded-lg backdrop-blur-sm max-w-md">
