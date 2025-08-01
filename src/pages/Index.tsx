@@ -1,46 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SwipeCard } from '@/components/SwipeCard';
-import { StatsPanel } from '@/components/StatsPanel';
 import { ActionButtons } from '@/components/ActionButtons';
 import { Button } from '@/components/ui/button';
 import { User, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-// Sample CLDR language terms
 // CLDR modules organized by type
 const cldrModules = {
+  "Basic Greetings": [
+    { title: "Hello", category: "Greeting" },
+    { title: "Goodbye", category: "Farewell" },
+    { title: "Thank you", category: "Courtesy" },
+    { title: "Please", category: "Courtesy" },
+    { title: "Sorry", category: "Courtesy" },
+  ],
   "Time & Calendar": [
     { title: "January", category: "Month" },
     { title: "Morning", category: "Time" },
     { title: "Monday", category: "Weekday" },
     { title: "Spring", category: "Season" },
     { title: "Yesterday", category: "Time" },
-    { title: "December", category: "Month" },
-    { title: "Evening", category: "Time" },
-    { title: "Sunday", category: "Weekday" },
-    { title: "Winter", category: "Season" },
   ],
-  "Languages & Communication": [
+  "Languages": [
     { title: "English", category: "Language" },
-    { title: "Hello", category: "Greeting" },
-    { title: "Thank you", category: "Courtesy" },
     { title: "French", category: "Language" },
-    { title: "Goodbye", category: "Farewell" },
-    { title: "Please", category: "Courtesy" },
+    { title: "Spanish", category: "Language" },
+    { title: "German", category: "Language" },
+    { title: "Italian", category: "Language" },
   ],
 };
 
 const moduleNames = Object.keys(cldrModules);
-const allTerms = Object.values(cldrModules).flat();
 
 const Index = () => {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
+  const [moduleProgress, setModuleProgress] = useState<Record<string, number>>({
+    "Basic Greetings": 0,
+    "Time & Calendar": 0,
+    "Languages": 0,
+  });
   const [stats, setStats] = useState({
-    currentModule: moduleNames[0],
-    moduleProgress: 48,
-    totalModules: moduleNames.length,
-    totalReviews: 12,
+    totalReviews: 0,
     accuracy: 94,
   });
   const { toast } = useToast();
@@ -50,16 +52,17 @@ const Index = () => {
     
     setIsAnimating(true);
     
-    // Update stats based on action
+    // Update stats
     const newStats = { ...stats };
     newStats.totalReviews += 1;
-    newStats.moduleProgress = Math.min(100, ((newStats.totalReviews % 25) / 25) * 100);
     
-    // Switch module every 25 reviews
-    if (newStats.totalReviews % 25 === 0) {
-      const moduleIndex = Math.floor(newStats.totalReviews / 25) % moduleNames.length;
-      newStats.currentModule = moduleNames[moduleIndex];
-    }
+    // Update current module progress
+    const currentModuleName = moduleNames[currentModuleIndex];
+    const currentModuleTerms = cldrModules[currentModuleName];
+    const newProgress = { ...moduleProgress };
+    const currentProgress = newProgress[currentModuleName];
+    const incrementPerTerm = 100 / currentModuleTerms.length;
+    newProgress[currentModuleName] = Math.min(100, Math.round(currentProgress + incrementPerTerm));
     
     // Show feedback toast
     const messages = {
@@ -71,16 +74,19 @@ const Index = () => {
     toast(messages[direction]);
     
     setStats(newStats);
+    setModuleProgress(newProgress);
     
     // Move to next card after animation
     setTimeout(() => {
-      setCurrentCardIndex((prev) => (prev + 1) % allTerms.length);
+      const currentModuleTerms = cldrModules[moduleNames[currentModuleIndex]];
+      setCurrentCardIndex((prev) => (prev + 1) % currentModuleTerms.length);
       setIsAnimating(false);
     }, 300);
   };
 
-  const currentCard = allTerms[currentCardIndex];
-  const nextCard = allTerms[(currentCardIndex + 1) % allTerms.length];
+  const currentModuleTerms = cldrModules[moduleNames[currentModuleIndex]];
+  const currentCard = currentModuleTerms[currentCardIndex];
+  const nextCard = currentModuleTerms[(currentCardIndex + 1) % currentModuleTerms.length];
 
   return (
     <div className="min-h-screen bg-gradient-background">
@@ -88,7 +94,7 @@ const Index = () => {
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
           <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            QualitySwipe
+            SILICON UI/UX Test
           </h1>
         </div>
         <div className="flex items-center space-x-2">
@@ -102,16 +108,53 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex items-start justify-center gap-8 px-4 pt-8">
-        {/* Stats Panel */}
-        <StatsPanel stats={stats} />
+      <div className="flex flex-col items-center px-4 pt-8">
+        {/* Module Selector & Progress */}
+        <div className="w-full max-w-md mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="flex bg-card/50 backdrop-blur-sm rounded-lg p-1 border border-border/50">
+              {moduleNames.map((moduleName, index) => (
+                <button
+                  key={moduleName}
+                  onClick={() => {
+                    setCurrentModuleIndex(index);
+                    setCurrentCardIndex(0);
+                  }}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    index === currentModuleIndex
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {moduleName}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Progress for current module */}
+          <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/50">
+            <div className="text-center mb-3">
+              <h3 className="text-lg font-bold text-foreground">{moduleNames[currentModuleIndex]}</h3>
+              <div className="text-sm text-muted-foreground">
+                {Math.round(moduleProgress[moduleNames[currentModuleIndex]])}% Complete
+              </div>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-3">
+              <div 
+                className="bg-gradient-primary h-3 rounded-full transition-all duration-500"
+                style={{ width: `${moduleProgress[moduleNames[currentModuleIndex]]}%` }}
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Card Stack Area */}
-        <div className="relative w-80 h-96">
+        <div className="relative w-80 h-96 mb-8">
           {/* Next card (background) */}
           {nextCard && (
             <SwipeCard
-              key={`next-${(currentCardIndex + 1) % allTerms.length}`}
+              key={`next-${currentModuleIndex}-${(currentCardIndex + 1) % currentModuleTerms.length}`}
               title={nextCard.title}
               category={nextCard.category}
               onSwipe={() => {}}
@@ -121,7 +164,7 @@ const Index = () => {
           
           {/* Current card (foreground) */}
           <SwipeCard
-            key={`current-${currentCardIndex}`}
+            key={`current-${currentModuleIndex}-${currentCardIndex}`}
             title={currentCard.title}
             category={currentCard.category}
             onSwipe={handleSwipe}
@@ -129,17 +172,15 @@ const Index = () => {
           />
         </div>
 
+        {/* Action Buttons */}
+        <ActionButtons onAction={handleSwipe} disabled={isAnimating} />
+
         {/* Instructions */}
-        <div className="text-center p-4 bg-card/30 rounded-lg backdrop-blur-sm max-w-md">
+        <div className="text-center mt-8 p-4 bg-card/30 rounded-lg backdrop-blur-sm max-w-md">
           <p className="text-sm text-muted-foreground">
             Review language terms for accuracy. Swipe right to approve, left to flag issues, or up to skip.
           </p>
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-center pb-8">
-        <ActionButtons onAction={handleSwipe} disabled={isAnimating} />
       </div>
     </div>
   );
