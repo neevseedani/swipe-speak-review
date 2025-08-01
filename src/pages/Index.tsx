@@ -7,32 +7,40 @@ import { User, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 // Sample CLDR language terms
-const languageTerms = [
-  { title: "January", category: "Month" },
-  { title: "English", category: "Language" },
-  { title: "Morning", category: "Time" },
-  { title: "Monday", category: "Weekday" },
-  { title: "Spring", category: "Season" },
-  { title: "Hello", category: "Greeting" },
-  { title: "Thank you", category: "Courtesy" },
-  { title: "Yesterday", category: "Time" },
-  { title: "French", category: "Language" },
-  { title: "December", category: "Month" },
-  { title: "Evening", category: "Time" },
-  { title: "Sunday", category: "Weekday" },
-  { title: "Winter", category: "Season" },
-  { title: "Goodbye", category: "Farewell" },
-  { title: "Please", category: "Courtesy" },
-];
+// CLDR modules organized by type
+const cldrModules = {
+  "Time & Calendar": [
+    { title: "January", category: "Month" },
+    { title: "Morning", category: "Time" },
+    { title: "Monday", category: "Weekday" },
+    { title: "Spring", category: "Season" },
+    { title: "Yesterday", category: "Time" },
+    { title: "December", category: "Month" },
+    { title: "Evening", category: "Time" },
+    { title: "Sunday", category: "Weekday" },
+    { title: "Winter", category: "Season" },
+  ],
+  "Languages & Communication": [
+    { title: "English", category: "Language" },
+    { title: "Hello", category: "Greeting" },
+    { title: "Thank you", category: "Courtesy" },
+    { title: "French", category: "Language" },
+    { title: "Goodbye", category: "Farewell" },
+    { title: "Please", category: "Courtesy" },
+  ],
+};
+
+const moduleNames = Object.keys(cldrModules);
+const allTerms = Object.values(cldrModules).flat();
 
 const Index = () => {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [stats, setStats] = useState({
-    dailyProgress: 12,
-    dailyGoal: 50,
-    streak: 7,
-    totalReviews: 1247,
+    currentModule: moduleNames[0],
+    moduleProgress: 48,
+    totalModules: moduleNames.length,
+    totalReviews: 12,
     accuracy: 94,
   });
   const { toast } = useToast();
@@ -44,8 +52,14 @@ const Index = () => {
     
     // Update stats based on action
     const newStats = { ...stats };
-    newStats.dailyProgress += 1;
     newStats.totalReviews += 1;
+    newStats.moduleProgress = Math.min(100, ((newStats.totalReviews % 25) / 25) * 100);
+    
+    // Switch module every 25 reviews
+    if (newStats.totalReviews % 25 === 0) {
+      const moduleIndex = Math.floor(newStats.totalReviews / 25) % moduleNames.length;
+      newStats.currentModule = moduleNames[moduleIndex];
+    }
     
     // Show feedback toast
     const messages = {
@@ -60,13 +74,13 @@ const Index = () => {
     
     // Move to next card after animation
     setTimeout(() => {
-      setCurrentCardIndex((prev) => (prev + 1) % languageTerms.length);
+      setCurrentCardIndex((prev) => (prev + 1) % allTerms.length);
       setIsAnimating(false);
     }, 300);
   };
 
-  const currentCard = languageTerms[currentCardIndex];
-  const nextCard = languageTerms[(currentCardIndex + 1) % languageTerms.length];
+  const currentCard = allTerms[currentCardIndex];
+  const nextCard = allTerms[(currentCardIndex + 1) % allTerms.length];
 
   return (
     <div className="min-h-screen bg-gradient-background">
@@ -88,16 +102,16 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col items-center px-4 pt-8">
+      <div className="flex items-start justify-center gap-8 px-4 pt-8">
         {/* Stats Panel */}
         <StatsPanel stats={stats} />
 
         {/* Card Stack Area */}
-        <div className="relative mt-12 mb-8 w-80 h-96">
+        <div className="relative w-80 h-96">
           {/* Next card (background) */}
           {nextCard && (
             <SwipeCard
-              key={`next-${(currentCardIndex + 1) % languageTerms.length}`}
+              key={`next-${(currentCardIndex + 1) % allTerms.length}`}
               title={nextCard.title}
               category={nextCard.category}
               onSwipe={() => {}}
@@ -115,23 +129,17 @@ const Index = () => {
           />
         </div>
 
-        {/* Action Buttons */}
-        <ActionButtons onAction={handleSwipe} disabled={isAnimating} />
-
         {/* Instructions */}
-        <div className="text-center mt-8 p-4 bg-card/30 rounded-lg backdrop-blur-sm max-w-md">
+        <div className="text-center p-4 bg-card/30 rounded-lg backdrop-blur-sm max-w-md">
           <p className="text-sm text-muted-foreground">
             Review language terms for accuracy. Swipe right to approve, left to flag issues, or up to skip.
           </p>
         </div>
+      </div>
 
-        {/* Account Setup Notice */}
-        <div className="mt-8 p-4 bg-primary/10 border border-primary/20 rounded-lg max-w-md text-center">
-          <p className="text-sm text-primary mb-2">Ready to save your progress?</p>
-          <p className="text-xs text-muted-foreground">
-            Connect to Supabase to enable user accounts, leaderboards, and progress tracking.
-          </p>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex justify-center pb-8">
+        <ActionButtons onAction={handleSwipe} disabled={isAnimating} />
       </div>
     </div>
   );

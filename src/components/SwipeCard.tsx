@@ -49,9 +49,15 @@ export const SwipeCard = ({ title, category, onSwipe, isActive }: SwipeCardProps
 
     if (Math.abs(x) > threshold || Math.abs(y) > threshold) {
       if (Math.abs(x) > Math.abs(y)) {
-        onSwipe(x > 0 ? 'right' : 'left');
+        // Animate card off screen
+        const direction = x > 0 ? 'right' : 'left';
+        const exitDistance = direction === 'right' ? 500 : -500;
+        setDragOffset({ x: exitDistance, y: y });
+        setTimeout(() => onSwipe(direction), 300);
       } else if (y < -threshold) {
-        onSwipe('up');
+        // Animate card up off screen
+        setDragOffset({ x: x, y: -500 });
+        setTimeout(() => onSwipe('up'), 300);
       }
     } else {
       // Snap back
